@@ -50,7 +50,7 @@ Input: (batch, 2, 1024)           # I/Q signal data
 - **Memory Usage**: ~3.5GB (batch size 256)
 - **Target Use**: Baseline model, overfitting prevention
 
-### 2. CNN-64 Channel Model (`Conservative64ChannelCNN`)
+### 2. CNN-64 Channel Model (`NewCNN64`)
 
 **Architecture Philosophy**: Higher capacity model with maximum 64 feature channels for improved pattern recognition.
 
