@@ -51,17 +51,11 @@ criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
 ### Signal Preprocessing
 **Key breakthrough:** Amplitude/Phase representation instead of raw I/Q
 ```python
-# Normalize signals first
-i_norm = i_signal / (torch.sqrt(i_signal**2 + q_signal**2 + 1e-8))
-q_norm = q_signal / (torch.sqrt(i_signal**2 + q_signal**2 + 1e-8))
-
-# Create amplitude and phase
-amplitude = torch.sqrt(i_signal**2 + q_signal**2)
-phase = torch.atan2(q_signal, i_signal)
-
-# Reshape to 32x32 for CNN
-i_2d = amplitude.view(1, 32, 32)
-q_2d = phase.view(1, 32, 32)
+        amplitude = torch.sqrt(i_signal**2 + q_signal**2)
+        phase = torch.atan2(q_signal, i_signal)
+        
+        i_2d = amplitude.view(1, 32, 32)  # Amplitude as "I"
+        q_2d = phase.view(1, 32, 32)     # Phase as "Q"
 ```
 
 ---
