@@ -71,7 +71,7 @@
 
 ### CONFUSION MATRIX 
      Confusion matrix plot showing classification results for eight modulation types: OOK, 4ASK, 8ASK, BPSK, QPSK, 8PSK, 16QAM, and 64QAM. The matrix displays true labels on the vertical axis and predicted labels on the horizontal axis, with cell values indicating the number of samples for each true-predicted pair. Most values are concentrated along the diagonal, indicating correct predictions, with some off-diagonal values showing misclassifications. The overall accuracy is 66.38 percent. A blue color gradient bar on the right represents the count scale, with darker shades indicating higher values. The environment is a scientific or research context, focusing on evaluating model performance. The following text appears at the top: Confusion Matrix I signal and Q signal process separately Best Epoch Overall Accuracy 66.38 percent. The axes are labeled True Label and Predicted Label. 
-    ![Confusion](./home_notebook/best_confusion_matrix.png)
+![Confusion](./home_notebook/best_confusion_matrix.png)
 ### Heatmap Overall Accuracy Each Modulation with each SNR level 
     Heatmap plot showing classification accuracy for each target modulation type across different SNR levels. The x-axis lists SNR values, the y-axis lists modulation types: OOK, 4ASK, 8ASK, BPSK, QPSK, 8PSK, 16QAM, and 64QAM. Each cell displays the accuracy for a specific modulation and SNR, with a color gradient indicating accuracy levels—darker shades represent higher accuracy. The environment is a research setting, visualizing model performance across conditions.
-    ![Heatmap](./home_notebook/modulation_snr_accuracy_heatm.png)
+![Heatmap](./home_notebook/modulation_snr_accuracy_heatm.png)
