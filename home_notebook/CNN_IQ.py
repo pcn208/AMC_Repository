@@ -226,5 +226,5 @@ class CNNIQModel(nn.Module):
         
         return output
 
-def create_CNNIQModel(n_labels=8, dropout_rate=0.5):  
+def create_CNNIQModel(n_labels=6, dropout_rate=0.5):  
     return CNNIQModel(n_labels, dropout_rate)
