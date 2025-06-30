@@ -31,8 +31,45 @@
     Goes up to 256 channels  
     Created with `create_complex_model`
 
-### Next Actions
-- Plot a few augmented examples  
-- Tune dropout vs. augmentation mix  
-- Branch for CNN-LSTM fusion
+### New Log 
 
+**Date:** 2025-06-30 
+
+### Improvement Model : 
+/home_notebook/CNN_IQ.py 
+
+**Structure:** 
+| Component            | Type / Layer                                   | Output Shape               | Description                                                      |
+|----------------------|-------------------------------------------------|----------------------------|------------------------------------------------------------------|
+| **CNNIQBranch**      |                                                 |                            | *Processes one channel (I or Q) through two conv blocks + GAP*   |
+| `conv1`              | Conv2d(1 → 64, 3×3, pad=1)                      | (batch, 64, H, W)          | 1st convolution                                                 |
+| `bn1`                | BatchNorm2d(64)                                 | (batch, 64, H, W)          | Normalizes after `conv1`                                        |
+| `conv1_2`            | Conv2d(64 → 64, 3×3, pad=1)                     | (batch, 64, H, W)          | 2nd convolution in block 1                                      |
+| `bn1_2`              | BatchNorm2d(64)                                 | (batch, 64, H, W)          | Normalizes after `conv1_2`                                      |
+| `pool` + `dropout`   | MaxPool2d(3×3,stride=2,pad=1) + Dropout2d        | (batch, 64, ⌈H/2⌉, ⌈W/2⌉)   | Downsamples + regularizes                                       |
+| `conv2`              | Conv2d(64 → 128, 3×3, pad=1)                    | (batch, 128, ⌈H/2⌉, ⌈W/2⌉) | 1st convolution in block 2                                       |
+| `bn2`                | BatchNorm2d(128)                                | (batch, 128, ⌈H/2⌉, ⌈W/2⌉) | Normalizes after `conv2`                                        |
+| `conv2_2`            | Conv2d(128 → 128, 3×3, pad=1)                   | (batch, 128, ⌈H/2⌉, ⌈W/2⌉) | 2nd convolution in block 2                                      |
+| `bn2_2`              | BatchNorm2d(128)                                | (batch, 128, ⌈H/2⌉, ⌈W/2⌉) | Normalizes after `conv2_2`                                      |
+| `pool` + `dropout`   | MaxPool2d + Dropout2d                           | (batch, 128, ⌈H/4⌉, ⌈W/4⌉) | Further downsampling + dropout                                  |
+| `global_avg_pool`    | AdaptiveAvgPool2d(1×1)                          | (batch, 128, 1, 1)         | Collapses spatial dims to 1×1                                   |
+| `flatten`            | —                                               | (batch, 128)               | Flattens for fully-connected layers                             |
+| **CNNIQModel**       |                                                 |                            | *Fuses I/Q branches and classifies*                             |
+| `i_branch`, `q_branch` | CNNIQBranch(dropout×0.75)                    | (batch, 128)               | Separate feature extractors for I and Q                         |
+| `combined_features`  | Element-wise add                                 | (batch, 128)               | Simple addition fusion of I & Q features                        |
+| **Classifier**       |                                                 |                            | *Three dense layers + output*                                   |
+| `Linear(128→256)`    | Linear + BatchNorm1d + LeakyReLU + Dropout       | (batch, 256)               | Expands feature dim                                            |
+| `Linear(256→128)`    | Linear + BatchNorm1d + LeakyReLU + Dropout       | (batch, 128)               | Reduces dim with normalization                                  |
+| `Linear(128→64)`     | Linear + LeakyReLU + Dropout                     | (batch, 64)                | Further reduction                                              |
+| `Linear(64→num_classes)` | Linear                                     | (batch, num_classes)       | Final logits for classification                                 |
+
+### TARGET MODULATION : 
+    ['OOK','4ASK','8ASK','BPSK', 'QPSK', '8PSK', '16QAM','64QAM']
+    Total dataset size: 49504
+    Train dataset size: 49504 (80%)
+    Validation dataset size: 14144 (20%)
+
+### CONFUSION MATRIX 
+    ![Best Confusion Matrix](home_notebook/best_confusion_matrix.png) 
+### Heatmap Overall Accuracy Each Modulation with each SNR level 
+    ![Heatmap Plot Accuracy on Each SNR level and each Target Modulation](home_notebook/modulation_snr_accuracy_heatm.png)
