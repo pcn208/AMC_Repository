@@ -32,6 +32,9 @@ class CNNLSTMBranch(nn.Module):
         self.lstm2 = nn.LSTM(input_size=100, hidden_size=50, batch_first=True)
         self.lstm_dropout = nn.Dropout(dropout_rate)
         
+        # Attention layer for global attention mechanism
+        self.attention_layer = nn.Linear(50, 1)
+        
         # Calculate the sequence length after convolutions
         # This depends on your input size - adjust accordingly
         self.adaptive_pool = nn.AdaptiveAvgPool2d((8, 8))  # Fixed spatial size for LSTM
@@ -56,6 +59,10 @@ class CNNLSTMBranch(nn.Module):
                         nn.init.orthogonal_(param.data)
                     elif 'bias' in name:
                         param.data.fill_(0)
+            elif isinstance(m, nn.Linear):
+                nn.init.xavier_uniform_(m.weight)
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
     
     def forward(self, x):
         batch_size = x.size(0)
@@ -97,8 +104,10 @@ class CNNLSTMBranch(nn.Module):
         x, _ = self.lstm2(x)  # (batch, 64, 50)
         x = self.lstm_dropout(x)
         
-        # Take the last time step output (following paper's approach)
-        features = x[:, -1, :]  # (batch, 50)
+        # Global attention mechanism instead of last timestep
+        attention_scores = self.attention_layer(x)  # (batch, 64, 1)
+        attention_weights = F.softmax(attention_scores, dim=1)  # (batch, 64, 1)
+        features = torch.sum(x * attention_weights, dim=1)  # (batch, 50)
         
         return features
 
@@ -227,7 +236,7 @@ class CNNLSTMIQModelOuterProduct(nn.Module):
         return output
 
 
-def create_enhanced_CNNLSTMIQModel(n_labels=8, dropout_rate=0.5, use_outer_product=False):  
+def create_enhanced_CNNLSTMIQModel(n_labels=9, dropout_rate=0.5, use_outer_product=False):  
     """Create enhanced CNN-LSTM model"""
     if use_outer_product:
         return CNNLSTMIQModelOuterProduct(n_labels, dropout_rate)
