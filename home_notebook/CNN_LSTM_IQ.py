@@ -179,7 +179,7 @@ class CNNLSTMIQModel(nn.Module):
         return output
 
 
-# Alternative: Outer Product Fusion (more like the paper)
+# Alternative: Outer Product Fusion 
 class CNNLSTMIQModelOuterProduct(nn.Module):
     """CNN-LSTM model with outer product fusion like the paper"""
     
