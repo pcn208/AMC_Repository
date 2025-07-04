@@ -3,16 +3,16 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class ChannelAttention(nn.Module):
-    """Channel attention mechanism for CNN features"""
+    """Channel attention mechanism for CNN features - FIXED for mixed precision"""
     def __init__(self, channels, reduction=16):
         super(ChannelAttention, self).__init__()
         self.avg_pool = nn.AdaptiveAvgPool2d(1)
         self.max_pool = nn.AdaptiveMaxPool2d(1)
         
         self.fc = nn.Sequential(
-            nn.Linear(channels, channels // reduction, bias=False),
+            nn.Linear(channels, channels // reduction, bias=True),  # Enable bias
             nn.ReLU(inplace=True),
-            nn.Linear(channels // reduction, channels, bias=False)
+            nn.Linear(channels // reduction, channels, bias=True)   # Enable bias
         )
         self.sigmoid = nn.Sigmoid()
     
@@ -28,10 +28,10 @@ class ChannelAttention(nn.Module):
         return x * attention.expand_as(x)
 
 class SpatialAttention(nn.Module):
-    """Spatial attention mechanism for CNN features"""
+    """Spatial attention mechanism for CNN features - FIXED for mixed precision"""
     def __init__(self, kernel_size=7):
         super(SpatialAttention, self).__init__()
-        self.conv = nn.Conv2d(2, 1, kernel_size, padding=kernel_size//2, bias=False)
+        self.conv = nn.Conv2d(2, 1, kernel_size, padding=kernel_size//2, bias=True)  # Enable bias
         self.sigmoid = nn.Sigmoid()
     
     def forward(self, x):
@@ -45,83 +45,44 @@ class SpatialAttention(nn.Module):
         return x * attention
 
 class TemporalAttention(nn.Module):
-    """Temporal attention mechanism for LSTM sequences - FIXED & IMPROVED"""
-    def __init__(self, hidden_size, num_heads=None):
+    """Temporal attention mechanism for LSTM sequences - FIXED for mixed precision"""
+    def __init__(self, hidden_size):
         super(TemporalAttention, self).__init__()
         self.hidden_size = hidden_size
-        self.use_multihead = True
         
-        # Robust auto-head selection
-        if num_heads is None:
-            # Find ALL possible divisors within reasonable limits
-            max_heads = min(16, hidden_size)  # Don't exceed 16 or hidden_size
-            valid_heads = [h for h in range(1, max_heads+1) if hidden_size % h == 0]
-            
-            if valid_heads:
-                # Prefer heads close to sqrt(hidden_size) for balance
-                ideal = int(round(hidden_size**0.5))
-                valid_heads.sort(key=lambda x: abs(x-ideal))
-                num_heads = valid_heads[0]  # Closest to ideal
-            else:
-                # Fallback to simple attention if no valid heads
-                num_heads = 1
-                self.use_multihead = False
-                print(f"⚠️ TemporalAttention: No valid heads for {hidden_size}-dim features. Using simple attention.")
-
-        # Final compatibility check
-        if hidden_size % num_heads != 0:
-            self.use_multihead = False
-            print(f"⚠️ TemporalAttention: {hidden_size} not divisible by {num_heads}. Using simple attention.")
-        else:
-            self.num_heads = num_heads
-            print(f"✅ TemporalAttention: Using {num_heads} heads for {hidden_size}-dim features")
-        
-        # Multi-head attention only if compatible
-        if self.use_multihead:
-            self.multihead_attn = nn.MultiheadAttention(
-                embed_dim=hidden_size, 
-                num_heads=num_heads,
-                dropout=0.1,
-                batch_first=True
-            )
-        
-        # Simple attention (always available as fallback)
-        self.simple_attention = nn.Sequential(
-            nn.Linear(hidden_size, 32),
+        # Use simple attention for better stability with mixed precision
+        self.attention = nn.Sequential(
+            nn.Linear(hidden_size, hidden_size // 2, bias=True),
             nn.Tanh(),
-            nn.Linear(32, 1)
+            nn.Linear(hidden_size // 2, 1, bias=True)
         )
     
     def forward(self, lstm_output):
-        if hasattr(self, 'multihead_attn') and self.use_multihead:
-            # Multi-head attention
-            attn_output, _ = self.multihead_attn(
-                lstm_output, lstm_output, lstm_output
-            )
-            # Global average pooling
-            return torch.mean(attn_output, dim=1)
-        else:
-            # Simple attention fallback
-            scores = self.simple_attention(lstm_output).squeeze(-1)
-            weights = F.softmax(scores, dim=1)
-            return torch.sum(lstm_output * weights.unsqueeze(-1), dim=1)
-            
+        # Simple attention mechanism
+        # lstm_output shape: (batch, seq_len, hidden_size)
+        attention_scores = self.attention(lstm_output).squeeze(-1)  # (batch, seq_len)
+        attention_weights = F.softmax(attention_scores, dim=1)  # (batch, seq_len)
+        
+        # Weighted sum
+        attended_output = torch.sum(lstm_output * attention_weights.unsqueeze(-1), dim=1)
+        return attended_output
+
 class CNNLSTMBranchWithAttention(nn.Module):
-    """Enhanced CNN-LSTM branch with attention mechanisms - FIXED VERSION"""
+    """Enhanced CNN-LSTM branch with attention mechanisms - FIXED for mixed precision"""
     
-    def __init__(self, dropout_rate=0.3, use_attention=True, num_heads=None):
+    def __init__(self, dropout_rate=0.3, use_attention=True):
         super(CNNLSTMBranchWithAttention, self).__init__()
         self.use_attention = use_attention
         
-        # CNN layers
-        self.conv1 = nn.Conv2d(1, 64, kernel_size=3, padding=1)
+        # CNN layers - ensure all have bias=True for mixed precision stability
+        self.conv1 = nn.Conv2d(1, 64, kernel_size=3, padding=1, bias=True)
         self.bn1 = nn.BatchNorm2d(64)
-        self.conv1_2 = nn.Conv2d(64, 64, kernel_size=3, padding=1)
+        self.conv1_2 = nn.Conv2d(64, 64, kernel_size=3, padding=1, bias=True)
         self.bn1_2 = nn.BatchNorm2d(64)
         
-        self.conv2 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
+        self.conv2 = nn.Conv2d(64, 128, kernel_size=3, padding=1, bias=True)
         self.bn2 = nn.BatchNorm2d(128)
-        self.conv2_2 = nn.Conv2d(128, 128, kernel_size=3, padding=1)
+        self.conv2_2 = nn.Conv2d(128, 128, kernel_size=3, padding=1, bias=True)
         self.bn2_2 = nn.BatchNorm2d(128)
         
         # Attention mechanisms for CNN
@@ -130,19 +91,18 @@ class CNNLSTMBranchWithAttention(nn.Module):
             self.spatial_attention = SpatialAttention()
         
         # Pooling and activation
-        self.pool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)  # Simplified pooling
         self.leaky_relu = nn.LeakyReLU(0.1, inplace=True)
         self.dropout = nn.Dropout2d(dropout_rate)
         
-        # LSTM layers
-        self.lstm1 = nn.LSTM(input_size=128, hidden_size=100, batch_first=True, bidirectional=True)
-        self.lstm2 = nn.LSTM(input_size=200, hidden_size=50, batch_first=True, bidirectional=True)
+        # LSTM layers - use single direction for stability
+        self.lstm1 = nn.LSTM(input_size=128, hidden_size=100, batch_first=True, bias=True)
+        self.lstm2 = nn.LSTM(input_size=100, hidden_size=50, batch_first=True, bias=True)
         self.lstm_dropout = nn.Dropout(dropout_rate)
         
-        # Attention mechanism for LSTM - FIXED
+        # Attention mechanism for LSTM
         if self.use_attention:
-            # 50*2 = 100 from bidirectional LSTM
-            self.temporal_attention = TemporalAttention(100, num_heads=num_heads)
+            self.temporal_attention = TemporalAttention(50)
         
         self.adaptive_pool = nn.AdaptiveAvgPool2d((8, 8))
         self._initialize_weights()
@@ -204,66 +164,64 @@ class CNNLSTMBranchWithAttention(nn.Module):
         x = x.permute(0, 2, 1)  # (batch, 64, 128)
         
         # LSTM processing
-        x, _ = self.lstm1(x)  # (batch, 64, 200) - bidirectional
+        x, _ = self.lstm1(x)  # (batch, 64, 100)
         x = self.lstm_dropout(x)
         
-        x, _ = self.lstm2(x)  # (batch, 64, 100) - bidirectional
+        x, _ = self.lstm2(x)  # (batch, 64, 50)
         x = self.lstm_dropout(x)
         
         # Apply temporal attention
         if self.use_attention:
-            features, attention_weights = self.temporal_attention(x, use_multihead=False)
+            features = self.temporal_attention(x)  # (batch, 50)
         else:
             # Fallback: use last timestep
-            features = x[:, -1, :]  # (batch, 100)
+            features = x[:, -1, :]  # (batch, 50)
         
         return features
 
 class CNNLSTMIQModelWithAttention(nn.Module):
-    """CNN-LSTM model with attention mechanisms for modulation classification - FIXED VERSION"""
+    """CNN-LSTM model with attention mechanisms - FIXED for mixed precision training"""
     
-    def __init__(self, num_classes, dropout_rate=0.4, use_attention=True, num_heads=None):
+    def __init__(self, num_classes, dropout_rate=0.4, use_attention=True):
         super(CNNLSTMIQModelWithAttention, self).__init__()
         
         # Separate branches for I and Q signals
         self.i_branch = CNNLSTMBranchWithAttention(
             dropout_rate=dropout_rate * 0.75, 
-            use_attention=use_attention,
-            num_heads=num_heads
+            use_attention=use_attention
         )
         self.q_branch = CNNLSTMBranchWithAttention(
             dropout_rate=dropout_rate * 0.75, 
-            use_attention=use_attention,
-            num_heads=num_heads
+            use_attention=use_attention
         )
         
         # Feature fusion with attention
-        feature_dim = 100  # From bidirectional LSTM (50*2)
+        feature_dim = 50  # From LSTM output
         if use_attention:
             self.fusion_attention = nn.Sequential(
-                nn.Linear(feature_dim * 2, feature_dim),
+                nn.Linear(feature_dim * 2, feature_dim, bias=True),
                 nn.Tanh(),
-                nn.Linear(feature_dim, 2),
+                nn.Linear(feature_dim, 2, bias=True),
                 nn.Softmax(dim=1)
             )
         
         # Classifier
         self.classifier = nn.Sequential(
-            nn.Linear(feature_dim, 256),
+            nn.Linear(feature_dim, 256, bias=True),
             nn.BatchNorm1d(256),
             nn.LeakyReLU(0.1, inplace=True),
             nn.Dropout(dropout_rate),
             
-            nn.Linear(256, 128),
+            nn.Linear(256, 128, bias=True),
             nn.BatchNorm1d(128), 
             nn.LeakyReLU(0.1, inplace=True),
             nn.Dropout(dropout_rate * 0.75),
             
-            nn.Linear(128, 64),
+            nn.Linear(128, 64, bias=True),
             nn.LeakyReLU(0.1, inplace=True),
             nn.Dropout(dropout_rate * 0.5),
             
-            nn.Linear(64, num_classes)
+            nn.Linear(64, num_classes, bias=True)
         )
         
         self.use_attention = use_attention
@@ -284,20 +242,20 @@ class CNNLSTMIQModelWithAttention(nn.Module):
         Forward pass with attention-enhanced I/Q processing
         
         Args:
-            i_input: I signal tensor of shape (batch, 1, 32, 32)
-            q_input: Q signal tensor of shape (batch, 1, 32, 32)
+            i_input: I signal tensor of shape (batch, 1, H, W)
+            q_input: Q signal tensor of shape (batch, 1, H, W)
         
         Returns:
             Output logits of shape (batch, num_classes)
         """
         # Process I and Q signals separately
-        i_features = self.i_branch(i_input)  # (batch, 100)
-        q_features = self.q_branch(q_input)  # (batch, 100)
+        i_features = self.i_branch(i_input)  # (batch, 50)
+        q_features = self.q_branch(q_input)  # (batch, 50)
         
         # Feature fusion with attention
         if self.use_attention:
             # Concatenate I and Q features
-            concat_features = torch.cat([i_features, q_features], dim=1)  # (batch, 200)
+            concat_features = torch.cat([i_features, q_features], dim=1)  # (batch, 100)
             
             # Learn attention weights for I and Q
             fusion_weights = self.fusion_attention(concat_features)  # (batch, 2)
@@ -306,28 +264,49 @@ class CNNLSTMIQModelWithAttention(nn.Module):
             attended_i = i_features * fusion_weights[:, 0:1]
             attended_q = q_features * fusion_weights[:, 1:2]
             
-            combined_features = attended_i + attended_q  # (batch, 100)
+            combined_features = attended_i + attended_q  # (batch, 50)
         else:
             # Simple addition fusion
-            combined_features = i_features + q_features  # (batch, 100)
+            combined_features = i_features + q_features  # (batch, 50)
         
         # Classification
         output = self.classifier(combined_features)
         return output
 
-def create_attention_CNNLSTMIQModel(n_labels=9, dropout_rate=0.5, use_attention=True, num_heads=None):  
+def create_attention_CNNLSTMIQModel(n_labels=9, dropout_rate=0.5, use_attention=True):  
     """
-    Create CNN-LSTM model with attention mechanisms - FIXED VERSION
+    Create CNN-LSTM model with attention mechanisms - FIXED for mixed precision
     
     Args:
         n_labels: Number of modulation classes
         dropout_rate: Dropout rate 
         use_attention: Whether to use attention mechanisms
-        num_heads: Number of attention heads (auto-calculated if None)
     """
     return CNNLSTMIQModelWithAttention(
         num_classes=n_labels, 
         dropout_rate=dropout_rate, 
-        use_attention=use_attention,
-        num_heads=num_heads
+        use_attention=use_attention
     )
+
+# debugging mixed precision issues
+def check_model_precision(model):
+    """Debug function to check model parameter types"""
+    for name, param in model.named_parameters():
+        print(f"{name}: {param.dtype}")
+
+# Training-compatible model creation
+def create_model_for_training(n_labels=9, dropout_rate=0.4, device='cuda'):
+    """Create model properly configured for mixed precision training"""
+    model = create_attention_CNNLSTMIQModel(
+        n_labels=n_labels, 
+        dropout_rate=dropout_rate, 
+        use_attention=True
+    )
+    
+    # Move to device and ensure proper dtype
+    model = model.to(device)
+    
+    # Ensure all parameters are in float32 initially
+    model = model.float()
+    
+    return model
