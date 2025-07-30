@@ -1,0 +1,60 @@
+\relax 
+\@writefile{toc}{\contentsline {section}{\numberline {I.}Konfigurasi Dataset}{1}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {A.}Skema Modulasi Target}{1}{}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Daftar Skema Modulasi Target}}{1}{}\protected@file@percent }
+\providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
+\newlabel{tab:target_modulations}{{1}{1}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {B.}Karakteristik Data}{1}{}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Spesifikasi Teknis Dataset}}{1}{}\protected@file@percent }
+\newlabel{tab:dataset_specs}{{2}{1}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {C.}Struktur Data I/Q}{2}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {D.}Pembagian Dataset}{2}{}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces Pembagian Dataset per Batch}}{2}{}\protected@file@percent }
+\newlabel{tab:data_split}{{3}{2}{}{}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {II.}Pipeline Pemrosesan Data}{2}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {A.}Representasi Sinyal I/Q}{2}{}\protected@file@percent }
+\newlabel{eq:complex_signal}{{1}{2}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {B.}Ekstraksi Fitur Amplitude dan Phase}{2}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {a.}Perhitungan Amplitude}{2}{}\protected@file@percent }
+\newlabel{eq:amplitude}{{2}{2}{}{}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {b.}Perhitungan Phase}{2}{}\protected@file@percent }
+\newlabel{eq:phase}{{3}{2}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {C.}Transformasi ke Representasi 2D}{3}{}\protected@file@percent }
+\newlabel{eq:2d_transform}{{4}{3}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {D.}Pipeline Pemrosesan Lengkap}{4}{}\protected@file@percent }
+\@writefile{loa}{\contentsline {algorithm}{\numberline {1}{\ignorespaces Pipeline Pemrosesan Sinyal I/Q}}{4}{}\protected@file@percent }
+\newlabel{alg:data_processing}{{1}{4}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {E.}Karakteristik Transformasi}{4}{}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces Perbandingan Representasi Sinyal}}{4}{}\protected@file@percent }
+\newlabel{tab:signal_representation}{{4}{4}{}{}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {III.}\textit  {Architecture} Model yang Digunakan}{5}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {A.}Model Standart (Serial)}{5}{}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {5}{\ignorespaces Rincian Arsitektur Model CNN-LSTM Serial}}{5}{}\protected@file@percent }
+\newlabel{tab:arsitektur_model}{{5}{5}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {B.}Model Paralel CNN-LSTM}{6}{}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {6}{\ignorespaces Rincian Arsitektur Model CNN-LSTM Paralel}}{6}{}\protected@file@percent }
+\newlabel{tab:arsitektur_model_paralel}{{6}{6}{}{}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {IV.}Hasil dan Evaluasi Model}{7}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {A.}Parameter yang Digunakan untuk Evaluasi}{7}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {B.}Hasil Akurasi Model}{7}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {a.}Matrix Confusion Kedua Model}{7}{}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Matriks konfusi yang membandingkan performa Model Standar (kiri) dan Model Paralel (kanan) pada set data uji. Model Paralel mencapai akurasi keseluruhan yang sedikit lebih tinggi sebesar 65,54\% dibandingkan Model Standar sebesar 64,83\%, dengan peningkatan yang signifikan pada klasifikasi modulasi 8PSK dan 64QAM.}}{7}{}\protected@file@percent }
+\newlabel{fig:Figure 1}{{1}{7}{}{}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {b.}Kurva Train dan Validation ke Dua Model}{9}{}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Kurva akurasi dan loss untuk model Standar (Serial) dan Paralel pada set data pelatihan dan validasi. Model Paralel menunjukkan peningkatan akurasi yang lebih baik pada set data pelatihan dan validasi dibandingkan model Standar.}}{9}{}\protected@file@percent }
+\newlabel{fig:Figure 2}{{2}{9}{}{}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {c.}Kurva Perbandingan Kerja dari Dua Model}{10}{}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Kinerja klasifikasi modulasi yang menunjukkan keunggulan model Paralel (kanan) dalam mencapai akurasi tinggi pada tingkat SNR yang lebih rendah dibandingkan model Standar (kiri), terutama untuk modulasi kompleks.}}{10}{}\protected@file@percent }
+\newlabel{fig:Figure 3}{{3}{10}{}{}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {d.}Heatmap Perbandingan Akurasi Per-Kelas}{11}{}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Heatmap perbandingan akurasi klasifikasi antara Model Standar (atas) dan Model Paralel (bawah) untuk setiap jenis modulasi pada berbagai level SNR.}}{11}{}\protected@file@percent }
+\newlabel{fig:Figure 4}{{4}{11}{}{}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {C.}Visualisasi Fitur dengan t-SNE}{11}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {a.}\textbf  {Metodologi t-SNE:}}{11}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {b.}\textbf  {Hasil perbandingan Global}}{12}{}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces Perbandingan t-SNE antara Model Standar (atas) dan Model Paralel (bawah). Model Paralel menunjukkan clustering yang jauh lebih baik dan separasi kelas yang lebih jelas.}}{12}{}\protected@file@percent }
+\newlabel{fig:tsne_global}{{5}{12}{}{}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {c.}\textbf  {Hasil Perbadingan Per-Kelas}}{13}{}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces Analisis t-SNE per-kelas menunjukkan setiap jenis modulasi. Model Paralel (bawah) menghasilkan struktur yang organized untuk semua kelas, sementara Model Standar (atas) menunjukkan distribusi yang chaotic.}}{13}{}\protected@file@percent }
+\newlabel{fig:tsne_per_class}{{6}{13}{}{}{}}
+\gdef \@abspage@last{13}
