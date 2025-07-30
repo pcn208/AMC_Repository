@@ -120,7 +120,7 @@ Dataset dibagi menggunakan strategi **70-15-15** untuk memastikan evaluasi yang 
 ### Heatmap Overall Accuracy Each Modulation with each SNR level 
 ![Heatmap](./Laporan/Hasil/Heatmap_overall_testing_accuracy_comparing_2model.png)
 ### CURVA Overall Accuracy Each Modulation with each SNR level 
-![Curva](./Laporan/Hasil/line_graph_overall_testing_accuracy_comparing_2model) 
+![Curva](./Laporan/Hasil/line_graph_overall_testing_accuracy_comparing_2model.png) 
 ### Curva Training Two Model 
 ![Training](./Laporan/Hasil/PRocess_Training_Validation_Accuracy.png)
 ### t-SNE Visualization 
