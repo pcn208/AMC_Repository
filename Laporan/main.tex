@@ -240,7 +240,7 @@ Kompatibilitas CNN & Memerlukan preprocessing & Langsung kompatibel \\
 
 \newpage 
 \section{\textit{Architecture} Model yang Digunakan}
-\subsection{Model Standart (Serial)}
+\subsection{Model Standar (Serial)}
 Model yang diusulkan dalam penelitian ini adalah arsitektur hybrid yang menggabungkan Convolutional Neural Network (CNN) dan Long Short-Term Memory (LSTM) dengan mekanisme Attention. 
 Arsitektur ini dirancang khusus untuk tugas klasifikasi sinyal dengan memanfaatkan dua komponen sinyal, yaitu In-phase (I) dan Quadrature (Q). 
 Secara konseptual, model ini menggunakan dua cabang CNN yang identik untuk memproses sinyal I dan Q secara paralel, mengekstraksi fitur spasial dari masing-masing sinyal. 
@@ -295,11 +295,25 @@ Dense + Softmax (Output) & \texttt{8} & Lapisan klasifikasi akhir \\
 \end{tabular}
 }
 \end{table}
+Pada Figure \ref{fig:architecture_standard} menunjukkan arsitektur model deep learning berbasis sinyal I/Q yang dirancang untuk tugas klasifikasi. Model ini menggunakan pendekatan dual-branch, di mana sinyal In-phase (I) dan Quadrature (Q) diproses secara terpisah melalui dua cabang jaringan yang identik. 
+Masing-masing cabang menerima input berupa citra dua dimensi berukuran 32×32 dan memprosesnya melalui blok ekstraksi fitur berbasis CNN yang terdiri dari dua lapisan Conv2D dengan kernel 3×3, diikuti oleh operasi Batch Normalization, fungsi aktivasi LeakyReLU, MaxPooling, dan Dropout untuk mengurangi overfitting. 
+Output dari CNN kemudian diubah menjadi bentuk sekuensial dan dimasukkan ke dalam blok LSTM yang terdiri dari dua lapisan LSTM berukuran 100 dan 50 unit. 
+Mekanisme Dropout kembali diterapkan untuk regularisasi. Selanjutnya, diterapkan mekanisme Global Attention untuk memberikan bobot pada bagian penting dari sekuens fitur yang dihasilkan oleh LSTM. Setiap cabang menghasilkan output berupa vektor fitur berdimensi 50.
 
+Keluaran dari kedua cabang kemudian digabungkan melalui operasi penjumlahan elemen demi elemen (element-wise addition). Hasil dari proses fusi ini selanjutnya dimasukkan ke dalam blok classifier yang terdiri dari beberapa lapisan fully connected (Linear), masing-masing berukuran 50→256, 256→128, 128→64, dan terakhir 64→Jumlah Kelas. 
+Proses ini menghasilkan output akhir berupa logits dengan dimensi sesuai jumlah kelas target. Arsitektur ini dirancang untuk menggabungkan keunggulan dari ekstraksi fitur spasial oleh CNN, pemahaman konteks temporal melalui LSTM, serta peningkatan fokus terhadap fitur penting melalui attention mechanism, sehingga diharapkan mampu 
+menghasilkan performa klasifikasi yang lebih akurat terhadap sinyal I/Q.
+
+\begin{figure}[H]
+    \centerline{\includegraphics[width=0.9\textwidth,height=0.8\textheight]{Model/CNN_LSTM_Standard.png}}
+    \caption{Arsitektur model dual-branch CNN-LSTM dengan mekanisme global attention untuk pemrosesan sinyal I/Q. Model terdiri dari dua cabang paralel (I-Branch dan Q-Branch) yang masing-masing mengolah sinyal spasial dan temporal, kemudian digabungkan dan diklasifikasikan melalui fully connected layers.}
+    \label{fig:architecture_standard}
+\end{figure}
 
 \newpage 
 \subsection{Model Paralel CNN-LSTM}
-Model yang digunakan adalah model CNN-LSTM dengan arsitektur paralel yang terdiri dari beberapa komponen utama sebagai berikut:
+Model yang digunakan adalah model CNN-LSTM dengan arsitektur paralel, paralel yang dimaksud adalah membagi proses feature extraction menjadi dua cabang CNN yang berbeda 
+yaitu deep dan shallow ini dapat di lihat dari Figure \ref{fig:architecture_parallel}. arsitektur-paralel memiki komponen utama sebagai berikut:
 
 \begin{itemize}
     \item \textbf{Cabang CNN Paralel:} Dua jalur CNN dengan kedalaman berbeda - CNN\_1 (shallow) dan CNN\_2 (deep) untuk mengekstrak fitur multi-skala dari sinyal I dan Q.
@@ -363,8 +377,18 @@ Softmax (Output Final) & \texttt{9} & Klasifikasi akhir \\
 \hline
 \end{tabular}
 \end{table}
+\begin{figure}[H]
+    \centerline{\includegraphics[width=0.9\textwidth,height=1.0\textheight]{Model/CNN_LSTM_Parallel.png}}
+    \caption{Arsitektur Model Paralel CNN-LSTM yang menggabungkan dua cabang CNN dengan kedalaman berbeda untuk ekstraksi fitur multi-skala, diikuti oleh pemrosesan LSTM dan penggabungan hasil klasifikasi.}
+    \label{fig:architecture_parallel}
+\end{figure}
 
 \newpage
+Pada Gambar~\ref{fig:architecture_parallel} ditampilkan arsitektur dari model CNN-LSTM paralel yang memiliki dua percabangan, yaitu cabang-I dan cabang-Q, di mana keduanya mengikuti jalur pemrosesan yang identik. Model paralel ini dirancang untuk membagi proses ekstraksi fitur menjadi dua jalur CNN yang berbeda, yaitu jalur \textit{shallow} dan \textit{deep}. Setiap cabang menerima input sinyal berdimensi $N \times 1 \times H \times W$, dan menggunakan dua jenis ekstraktor fitur CNN: CNN \textit{shallow} (CNN\_1) yang memproses sinyal melalui jalur konvolusi tunggal ($1 \rightarrow 64 \rightarrow 128$ saluran) dengan \textit{Batch Normalization}, aktivasi LeakyReLU, \textit{MaxPooling}, dan \textit{Dropout}, sebelum akhirnya dilakukan \textit{Global Average Pooling} untuk menghasilkan fitur berdimensi 128. Sedangkan CNN \textit{deep} (CNN\_2) menggunakan arsitektur konvolusi yang lebih kompleks ($1 \rightarrow 64 \rightarrow 128 \rightarrow 256 \rightarrow 256$ saluran) dengan dua operasi \textit{MaxPooling}, menghasilkan fitur berdimensi 256.
+
+Output dari kedua ekstraktor fitur digabungkan melalui proses konkatenasi, menciptakan vektor fitur berdimensi 384 (128 + 256) yang merepresentasikan kombinasi informasi spasial dangkal dan mendalam dari sinyal input. Representasi gabungan ini kemudian diproses melalui blok LSTM, yang terlebih dahulu membentuk ulang data ke format sekuensial, kemudian menerapkan dua lapisan LSTM ($384 \rightarrow 256 \rightarrow 128$) disertai \textit{Dropout} untuk regularisasi, guna menangkap ketergantungan temporal. Hasil akhirnya berupa output cabang berdimensi $N \times 128$.
+
+Setiap cabang diakhiri dengan lapisan linier (\textit{dense layer}) yang memetakan vektor fitur berdimensi 128 ke jumlah kelas target, menghasilkan \textit{logits} spesifik cabang. Pada tahap akhir, hasil prediksi dari cabang-I dan cabang-Q digabungkan melalui operasi rata-rata untuk menghasilkan \textit{output logits} akhir. Strategi ini memungkinkan penggabungan informasi pelengkap yang dipelajari secara paralel oleh jalur ekstraksi fitur \textit{shallow} dan \textit{deep}.
 \section{Hasil dan Evaluasi Model}
 \subsection{Parameter yang Digunakan untuk Evaluasi}
 Parameter yang digunakan ketika mengevaluasi model adalah sebagai berikut: 

@@ -64,8 +64,8 @@ class LSTMBranch(nn.Module):
         # For sequence preparation from 2D input
         self.adaptive_pool = nn.AdaptiveAvgPool2d((8, 8))  # Create 8x8 = 64 sequence length
         
-        # LSTM layers
-        self.lstm1 = nn.LSTM(input_size=64, hidden_size=256, batch_first=True)
+        # LSTM layers - corrected input size to match reshaped data
+        self.lstm1 = nn.LSTM(input_size=8, hidden_size=256, batch_first=True)  # 8 features per time step
         self.lstm2 = nn.LSTM(input_size=256, hidden_size=128, batch_first=True)
         self.lstm_dropout = nn.Dropout(dropout_rate)
 
@@ -95,11 +95,11 @@ class ParallelCNNLSTMModel(nn.Module):
         
         # I-Signal branches
         self.i_cnn_branch = CNNBranch(dropout_rate)
-        self.i_lstm_branch = LSTMBranch(input_size=64, dropout_rate=dropout_rate)
+        self.i_lstm_branch = LSTMBranch(input_size=8, dropout_rate=dropout_rate)
         
         # Q-Signal branches  
         self.q_cnn_branch = CNNBranch(dropout_rate)
-        self.q_lstm_branch = LSTMBranch(input_size=64, dropout_rate=dropout_rate)
+        self.q_lstm_branch = LSTMBranch(input_size=8, dropout_rate=dropout_rate)
         
         # Final fusion and classification
         # Total features: I-CNN(384) + I-LSTM(128) + Q-CNN(384) + Q-LSTM(128) = 1024
@@ -144,9 +144,9 @@ class EnhancedParallelCNNLSTMModel(nn.Module):
         
         # Same parallel branches
         self.i_cnn_branch = CNNBranch(dropout_rate)
-        self.i_lstm_branch = LSTMBranch(input_size=64, dropout_rate=dropout_rate)
+        self.i_lstm_branch = LSTMBranch(input_size=8, dropout_rate=dropout_rate)
         self.q_cnn_branch = CNNBranch(dropout_rate)
-        self.q_lstm_branch = LSTMBranch(input_size=64, dropout_rate=dropout_rate)
+        self.q_lstm_branch = LSTMBranch(input_size=8, dropout_rate=dropout_rate)
         
         # Attention mechanism for feature fusion
         self.attention = nn.MultiheadAttention(
@@ -212,3 +212,4 @@ def create_parallel_cnn_lstm_model(n_labels=9, dropout_rate=0.4, enhanced=False)
         return EnhancedParallelCNNLSTMModel(num_classes=n_labels, dropout_rate=dropout_rate)
     else:
         return ParallelCNNLSTMModel(num_classes=n_labels, dropout_rate=dropout_rate)
+
