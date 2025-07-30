@@ -1,44 +1,128 @@
 ### New Log 
 
-**Date:** 2025-06-30 
-
+**Date:** 2025-July-30 
+### Main Notebook 
+    notebook yang digunakan untuk menguji kedua model ada di ./home_notebook/Compare_Model.ipynb
 ### Improvement Model : 
-/home_notebook/CNN_IQ.py 
+## Model CNN+LSTM Standart (Serial)
 
 **Structure:** 
-| Component            | Type / Layer                                   | Output Shape               | Description                                                      |
-|----------------------|-------------------------------------------------|----------------------------|------------------------------------------------------------------|
-| **CNNIQBranch**      |                                                 |                            | *Processes one channel (I or Q) through two conv blocks + GAP*   |
-| `conv1`              | Conv2d(1 → 64, 3×3, pad=1)                      | (batch, 64, H, W)          | 1st convolution                                                 |
-| `bn1`                | BatchNorm2d(64)                                 | (batch, 64, H, W)          | Normalizes after `conv1`                                        |
-| `conv1_2`            | Conv2d(64 → 64, 3×3, pad=1)                     | (batch, 64, H, W)          | 2nd convolution in block 1                                      |
-| `bn1_2`              | BatchNorm2d(64)                                 | (batch, 64, H, W)          | Normalizes after `conv1_2`                                      |
-| `pool` + `dropout`   | MaxPool2d(3×3,stride=2,pad=1) + Dropout2d        | (batch, 64, ⌈H/2⌉, ⌈W/2⌉)   | Downsamples + regularizes                                       |
-| `conv2`              | Conv2d(64 → 128, 3×3, pad=1)                    | (batch, 128, ⌈H/2⌉, ⌈W/2⌉) | 1st convolution in block 2                                       |
-| `bn2`                | BatchNorm2d(128)                                | (batch, 128, ⌈H/2⌉, ⌈W/2⌉) | Normalizes after `conv2`                                        |
-| `conv2_2`            | Conv2d(128 → 128, 3×3, pad=1)                   | (batch, 128, ⌈H/2⌉, ⌈W/2⌉) | 2nd convolution in block 2                                      |
-| `bn2_2`              | BatchNorm2d(128)                                | (batch, 128, ⌈H/2⌉, ⌈W/2⌉) | Normalizes after `conv2_2`                                      |
-| `pool` + `dropout`   | MaxPool2d + Dropout2d                           | (batch, 128, ⌈H/4⌉, ⌈W/4⌉) | Further downsampling + dropout                                  |
-| `global_avg_pool`    | AdaptiveAvgPool2d(1×1)                          | (batch, 128, 1, 1)         | Collapses spatial dims to 1×1                                   |
-| `flatten`            | —                                               | (batch, 128)               | Flattens for fully-connected layers                             |
-| **CNNIQModel**       |                                                 |                            | *Fuses I/Q branches and classifies*                             |
-| `i_branch`, `q_branch` | CNNIQBranch(dropout×0.75)                    | (batch, 128)               | Separate feature extractors for I and Q                         |
-| `combined_features`  | Element-wise add                                 | (batch, 128)               | Simple addition fusion of I & Q features                        |
-| **Classifier**       |                                                 |                            | *Three dense layers + output*                                   |
-| `Linear(128→256)`    | Linear + BatchNorm1d + LeakyReLU + Dropout       | (batch, 256)               | Expands feature dim                                            |
-| `Linear(256→128)`    | Linear + BatchNorm1d + LeakyReLU + Dropout       | (batch, 128)               | Reduces dim with normalization                                  |
-| `Linear(128→64)`     | Linear + LeakyReLU + Dropout                     | (batch, 64)                | Further reduction                                              |
-| `Linear(64→num_classes)` | Linear                                     | (batch, num_classes)       | Final logits for classification                                 |
+# Rincian Arsitektur Model CNN-LSTM Serial
+
+| **Lapisan (Layer)** | **Dimensi Keluaran (Output Dimension)** | **Keterangan** |
+|---------------------|------------------------------------------|----------------|
+| **--- Cabang CNN (untuk I dan Q) ---** | | |
+| Masukan (Input Signals I/Q) | `(1, 32, 32)` | Representasi sinyal 2D |
+| Convolution2D (64 filter, 3x3) | `(64, 32, 32)` | Ekstraksi fitur awal |
+| Convolution2D (64 filter, 3x3) | `(64, 32, 32)` | Ekstraksi fitur lanjutan |
+| MaxPool2D (2x2) + Dropout | `(64, 16, 16)` | Reduksi dimensi & regularisasi |
+| Convolution2D (128 filter, 3x3) | `(128, 16, 16)` | Ekstraksi fitur kompleks |
+| Convolution2D (128 filter, 3x3) | `(128, 16, 16)` | Ekstraksi fitur kompleks |
+| MaxPool2D (2x2) + Dropout | `(128, 8, 8)` | Reduksi dimensi & regularisasi |
+| AdaptiveAvgPool2D | `(128, 8, 8)` | Penyesuaian dimensi spasial |
+| **--- Pemrosesan Sekuensial ---** | | |
+| Reshape untuk LSTM | `(64, 128)` | Mengubah fitur menjadi sekuens |
+| LSTM (100 unit) | `(64, 100)` | Mempelajari dependensi temporal |
+| LSTM (50 unit) | `(64, 50)` | Mempelajari dependensi temporal |
+| Global Attention | `50` | Pembobotan fitur temporal |
+| **--- Fusi dan Klasifikasi ---** | | |
+| Fusi Fitur (Penjumlahan I + Q) | `50` | Menggabungkan fitur dari I dan Q |
+| Dense + LeakyReLU | `256` | Lapisan terhubung penuh pertama |
+| Dropout | `256` | Regularisasi |
+| Dense + LeakyReLU | `128` | Lapisan terhubung penuh kedua |
+| Dropout | `128` | Regularisasi |
+| Dense + LeakyReLU | `64` | Lapisan terhubung penuh ketiga |
+| Dense + Softmax (Output) | `8` | Lapisan klasifikasi akhir |
+
+## Model CNN+LSTM Parallel 
+**Structure:** 
+# Rincian Arsitektur Model CNN-LSTM Paralel
+
+| **Lapisan (Layer)** | **Dimensi Keluaran (Output Dimension)** | **Keterangan** |
+|---------------------|------------------------------------------|----------------|
+| **--- Input Sinyal ---** | | |
+| Masukan (Input Signals I/Q) | `(1, 32, 32)` | Representasi sinyal 2D |
+| **--- Cabang CNN_1 (Shallow) ---** | | |
+| Convolution2D (64 filter, 3×3) | `(64, 32, 32)` | Ekstraksi fitur awal |
+| Convolution2D (128 filter, 3×3) | `(128, 32, 32)` | Ekstraksi fitur lanjutan |
+| MaxPool2D (2×2) + Dropout | `(128, 16, 16)` | Reduksi dimensi & regularisasi |
+| AdaptiveAvgPool2D | `(128, 1, 1)` | Global average pooling |
+| Flatten | `128` | Linearisasi fitur |
+| **--- Cabang CNN_2 (Deep) ---** | | |
+| Convolution2D (64 filter, 3×3) | `(64, 32, 32)` | Ekstraksi fitur awal |
+| Convolution2D (128 filter, 3×3) | `(128, 32, 32)` | Ekstraksi fitur menengah |
+| MaxPool2D (2×2) + Dropout | `(128, 16, 16)` | Reduksi dimensi & regularisasi |
+| Convolution2D (256 filter, 3×3) | `(256, 16, 16)` | Ekstraksi fitur kompleks |
+| Convolution2D (256 filter, 3×3) | `(256, 16, 16)` | Ekstraksi fitur kompleks |
+| MaxPool2D (2×2) + Dropout | `(256, 8, 8)` | Reduksi dimensi & regularisasi |
+| AdaptiveAvgPool2D | `(256, 1, 1)` | Global average pooling |
+| Flatten | `256` | Linearisasi fitur |
+| **--- Fusi Fitur & Pemrosesan LSTM ---** | | |
+| Concatenation (CNN_1 + CNN_2) | `384` | Penggabungan fitur paralel |
+| Reshape untuk LSTM | `(1, 384)` | Mengubah untuk input LSTM |
+| LSTM (256 unit) | `(1, 256)` | Mempelajari dependensi temporal |
+| Dropout | `(1, 256)` | Regularisasi |
+| LSTM (128 unit) | `(1, 128)` | Mempelajari dependensi temporal |
+| Last Time Step | `128` | Ekstraksi fitur temporal terakhir |
+| Dense (Output per cabang) | `9` | Klasifikasi per cabang I/Q |
+| **--- Fusi Cabang I/Q ---** | | |
+| I-Branch Output | `9` | Hasil klasifikasi cabang I |
+| Q-Branch Output | `9` | Hasil klasifikasi cabang Q |
+| Average Fusion | `9` | Rata-rata dari kedua cabang |
+| Softmax (Output Final) | `9` | Klasifikasi akhir |
+
 
 ### TARGET MODULATION : 
-    ['OOK','4ASK','8ASK','BPSK', 'QPSK', '8PSK', '16QAM','64QAM']
-    Total dataset size: 49504
-    Train dataset size: 49504 (80%)
-    Validation dataset size: 14144 (20%)
+Target Modulasi : [OOK, 4ASK, 8ASK,BPSK, QPSK, 8PSK, OQPSK ,16QAM, 64QAM]
+## Karakteristik Data
+
+Dataset yang digunakan memiliki spesifikasi teknis sebagai berikut:
+
+### Spesifikasi Teknis Dataset
+
+| **Parameter** | **Nilai** | **Keterangan** |
+|---------------|-----------|----------------|
+| Jumlah Kelas | 9 | Jenis modulasi yang diklasifikasi |
+| Kanal Input | 2 | Komponen I dan Q |
+| Panjang Sekuens | 1024 | Sampel per sinyal |
+| Format Sinyal | I/Q kompleks | Representasi baseband |
+| Ukuran Batch | 512 | Sampel per batch training |
+| Jumlah Epoch | 300 | Iterasi training |
+| Pembagian Data | 70-15-15 | Train-Validation-Test (%) |
+
+**Catatan:** Range SNR yang digunakan dalam dataset ini adalah -20 dB hingga +30 dB sesuai dengan Karakteristik Dataset RadioML2018.01A
+
+## Struktur Data I/Q
+
+Setiap sampel data terdiri dari:
+
+- **Komponen I (In-phase):** Bagian real dari sinyal kompleks
+- **Komponen Q (Quadrature):** Bagian imajiner dari sinyal kompleks  
+- **Panjang Sinyal:** 1024 sampel untuk setiap komponen
+- **Label Kelas:** Indeks numerik (0-8) untuk jenis modulasi
+
+## Pembagian Dataset
+
+Dataset dibagi menggunakan strategi **70-15-15** untuk memastikan evaluasi yang robust:
+
+### Pembagian Dataset per Batch
+
+| **Subset** | **Persentase** | **Sampel per Batch** | **Tujuan** |
+|------------|----------------|----------------------|------------|
+| Training | 70% | 358 | Pembelajaran model |
+| Validation | 15% | 77 | Tuning hyperparameter |
+| Testing | 15% | 77 | Evaluasi akhir |
+| **Total** | **100%** | **512** | **Satu batch lengkap** |
+
 
 ### CONFUSION MATRIX 
-     Confusion matrix plot showing classification results for eight modulation types: OOK, 4ASK, 8ASK, BPSK, QPSK, 8PSK, 16QAM, and 64QAM. The matrix displays true labels on the vertical axis and predicted labels on the horizontal axis, with cell values indicating the number of samples for each true-predicted pair. Most values are concentrated along the diagonal, indicating correct predictions, with some off-diagonal values showing misclassifications. The overall accuracy is 66.38 percent. A blue color gradient bar on the right represents the count scale, with darker shades indicating higher values. The environment is a scientific or research context, focusing on evaluating model performance. The following text appears at the top: Confusion Matrix I signal and Q signal process separately Best Epoch Overall Accuracy 66.38 percent. The axes are labeled True Label and Predicted Label. 
-![Confusion](./home_notebook/best_confusion_matrix.png)
+![Confusion](./Laporan/Hasil/confusion_matrix_with_percentage.png) 
 ### Heatmap Overall Accuracy Each Modulation with each SNR level 
-    Heatmap plot showing classification accuracy for each target modulation type across different SNR levels. The x-axis lists SNR values, the y-axis lists modulation types: OOK, 4ASK, 8ASK, BPSK, QPSK, 8PSK, 16QAM, and 64QAM. Each cell displays the accuracy for a specific modulation and SNR, with a color gradient indicating accuracy levels—darker shades represent higher accuracy. The environment is a research setting, visualizing model performance across conditions.
-![Heatmap](./home_notebook/modulation_snr_accuracy_heatm.png)
+![Heatmap](./Laporan/Hasil/Heatmap_overall_testing_accuracy_comparing_2model.png)
+### CURVA Overall Accuracy Each Modulation with each SNR level 
+![Curva](./Laporan/Hasil/line_graph_overall_testing_accuracy_comparing_2model) 
+### Curva Training Two Model 
+![Training](./Laporan/Hasil/PRocess_Training_Validation_Accuracy.png)
+### t-SNE Visualization 
+![Tsne](./Laporan/Hasil/tsne_detailed_analysis.png)
+![Tsne2](./Laporan/Hasil/tsne_model_comparison.png)
