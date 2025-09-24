@@ -88,8 +88,8 @@ class MultiDomainFusionModel(nn.Module):
     def __init__(self, num_classes, dropout_rate=0.5): 
         super(MultiDomainFusionModel, self).__init__() 
 
-        self.amplitude_cnn_branch = Cnn2dBranch(dropout_rate=dropout_rate) 
-        self.phase_cnn_branch = Cnn2dBranch(dropout_rate=dropout_rate) 
+        self.amplitude_cnn_branch = Cnn2DBranch(dropout_rate=dropout_rate) 
+        self.phase_cnn_branch = Cnn2DBranch(dropout_rate=dropout_rate) 
         self.iq_lstm_branch = Lstm1dBranch(dropout_rate=dropout_rate) 
 
         # Fusion and classifier 
