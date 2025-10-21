@@ -3,29 +3,29 @@ from torch import nn
 
 class PositionalEncoding(nn.Module): 
 
-    def __init__(self,d_model,max_len,device): 
-
-        super (PositionalEncoding,self).__ini__()
+    def __init__(self, d_model, max_len = 5e3, device): 
         
-        self.encoding = torch.zeros(max_len,d_model,device = device)
-        self.encoding.requires_grad = False
+        super(PositionalEncoding,self).__init__()
 
-        pos = torch.arange(0,max_len,device = device)
-        pos = pos.float().unsqueeze(dim=1)
+        # Create matrix encoding once 
+        encoding = torch.zeros(max_len,d_model,device = device)
+        encoding.require_grad = False # Encoding don't train 
 
-        _2i = torch.arange(0,d_model, step = 2, device = device).float()
-        # i means index from the model 
-        # step=2 means 'i' multiplied by 2 
+        pos = torch.arange(0,max_len,device=device).float().unsqueeze(dim=1)
 
-        self.encoding[:,0::2] = torch.sin(pos/(1e4 ** (_2i / d_model)))
-        self.encoding[:,1::2] = torch.cos(pos/(1e4 ** (_2i / d_model)))
-        #comput the posisitonal encoding to consider positional information
+        _2i = toch.arange(0,d_model,step=2,device=device).float()
+        denominator = torch.pow(1e4,_2i / d_model)
 
-    def forward(self,x):
-        #self.encoding 
-        # [max_len = 521, d_model = 512]
-        batch_size, seq_len = x.size()
+        encoding[:,0::2] = torch.sin(pos / denominator)
+        encoding[:,1::2] = torch.cos(pos / denominator)
 
-        return self.encoding[:seq_len,:]
-        
+        self.encoding = encoding.unsqueeze(0)
+
+    def forward(self,x): 
+
+        batch_size,seq_len, d_model = x.shape
+
+        return x + self.encoding[:,:seq_len,:]
+
+
 
