@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 
-from encoder import Encoder 
+from .encoder import Encoder 
 
 class AMCTransformer(nn.Module): 
 
@@ -21,10 +21,10 @@ class AMCTransformer(nn.Module):
 
     def forward(self,src): 
 
-        enc_output = self.encoder(src) -> (batch_size,num_pathes + 1, d_model)
+        enc_output = self.encoder(src) #-> (batch_size,num_pathes + 1, d_model)
 
         cls_output = enc_output[:,0]
 
         output = self.mlp_head(cls_output)
 
-        retur output 
+        return output 

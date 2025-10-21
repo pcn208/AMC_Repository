@@ -1,7 +1,7 @@
 from typing import LiteralString
 from torch import nn 
 
-from layers.scale_dot_product_attention import ScaleDotProductAttention
+from ..layers.scale_dot_product_attention import ScaleDotProductAttention
 
 class MultiHeadAttention(nn.Module):
     def __init__(self,d_model,n_head):
@@ -39,7 +39,7 @@ class MultiHeadAttention(nn.Module):
 
         return tensor 
     def concat(self,tensor):
-        batch_size,head,Length,d_tensor = tensor.size()
+        batch_size,head,length,d_tensor = tensor.size()
         d_model = head * d_tensor
 
         tensor = tensor.transpose(1,2).contiguous().view(batch_size,length,d_model)

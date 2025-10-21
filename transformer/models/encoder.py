@@ -1,10 +1,10 @@
 import torch
 from torch import nn
 
-from blocks.encoder_layer import EncoderLayer
+from .blocks.encoder_layer import EncoderLayer
 # Impor komponen yang benar untuk masalah sinyal
-from embedding.patch_embedding import PatchEmbedding
-from embedding.positional_encoding import PositionalEncoding
+from .embedding.patch_embedding import PatchEmbedding
+from .embedding.positional_encoding import PositionalEncoding
 
 class Encoder(nn.Module):
     def __init__(self, num_patches, patch_size, d_model, ffn_hidden, n_head, n_layers, drop_prob, device):
@@ -12,7 +12,7 @@ class Encoder(nn.Module):
         self.device = device
         
         # A. Logika Embedding sekarang ada di sini
-        self.patch_embedding = PatchEmbedding(patch_size=patch_size, d_model=d_model)
+        self.patch_embedding = PatchEmbedding(in_channels=1,patch_size=patch_size, embedding_dim=d_model)
         self.positional_encoding = PositionalEncoding(d_model=d_model, max_len=num_patches + 1) # +1 untuk cls_token
         self.cls_token = nn.Parameter(torch.randn(1, 1, d_model))
         
