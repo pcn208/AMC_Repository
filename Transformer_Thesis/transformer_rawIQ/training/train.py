@@ -25,7 +25,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 from dataloader.dataset import SingleStreamImageDataset, worker_init_fn
 from dataloader.utils import split_data
-from models.amc_transformer import AMCTransformer
+from Transformer_Thesis.transformer_rawIQ.models.transformer_rawIQ import AMCTransformer
 from training.utils import (
     save_checkpoint, 
     load_checkpoint,
@@ -84,7 +84,7 @@ class Config:
     D_MODEL = 128
     N_HEAD = 8
     N_LAYERS = 6
-    FFN_HIDDEN = 512
+    FFN_HIDDEN = D_MODEL * 4
     DROP_PROB = 0.1
     
     # Training hyperparameters
@@ -104,7 +104,7 @@ class Config:
     PATIENCE = 10
     
     # Checkpointing
-    SAVE_FREQ = 5  # Save checkpoint every N epochs
+    SAVE_FREQ = 10  # Save checkpoint every N epochs
     
     # Device
     DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

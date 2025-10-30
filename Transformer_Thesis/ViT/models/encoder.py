@@ -33,7 +33,7 @@ class Encoder(nn.Module):
 
     def forward(self, src, src_mask=None):
         # src shape sekarang adalah: (batch_size, in_channels, img_size_h, img_size_w)
-        
+                
         # 1. Terapkan patch embedding (Conv2d)
         embedded_patches = self.patch_embedding(src) # -> (batch_size, num_patches, d_model)
         
