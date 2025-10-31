@@ -16,7 +16,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 from dataloader.dataset import SingleStreamImageDataset, worker_init_fn
 from dataloader.utils import split_data
-from models.amc_transformer import AMCTransformer
+from models.transformer_rawIQ import AMCTransformer
 from training.utils import load_checkpoint, evaluate_model_with_confusion
 
 
@@ -77,7 +77,13 @@ def main():
             'TEST_SIZE': 0.15,
             'SPLIT_SEED': 42,
             'NORM_SEED': 49,
-            'PATCH_SIZE': 4,
+# --- 1D Model Params ---
+            'SEQ_LENGTH': 1024,
+            'EMBEDDING_TYPE': 'segment',
+            'SEGMENT_SIZE': 64,
+            'USE_CLS_TOKEN': True,
+            # ---------------------
+            
             'D_MODEL': 128,
             'N_HEAD': 8,
             'N_LAYERS': 6,
@@ -166,18 +172,20 @@ def main():
     
     num_classes = len(config['TARGET_MODULATIONS'])
     
+# --- Parameters for 1D Raw I/Q Transformer ---
     model_params = {
-        'in_channels': 1,
-        'img_size_h': 32,
-        'img_size_w': 64,
-        'patch_size': config.get('PATCH_SIZE', 4),
+        'in_channels': 2,  # 2 for I/Q
+        'seq_length': config.get('SEQ_LENGTH', 1024),
         'num_classes': num_classes,
         'd_model': config.get('D_MODEL', 128),
         'n_head': config.get('N_HEAD', 8),
         'n_layers': config.get('N_LAYERS', 6),
         'ffn_hidden': config.get('FFN_HIDDEN', 512),
         'drop_prob': config.get('DROP_PROB', 0.1),
-        'device': device
+        'device': device,
+        'use_cls_token': config.get('USE_CLS_TOKEN', True),
+        'embedding_type': config.get('EMBEDDING_TYPE', 'segment'),
+        'segment_size': config.get('SEGMENT_SIZE', 64)
     }
     
     model = AMCTransformer(**model_params).to(device)
