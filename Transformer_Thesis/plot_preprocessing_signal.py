@@ -37,8 +37,10 @@ class Config:
     SEQUENCE_LENGTH = 1024
 
     # DSP settings
-    SAMPLES_PER_SYMBOL = 2  # Samples per symbol for timing recovery
-    TIMING_METHOD = 'simple_energy'  # Options: 'gardner', 'mueller_muller', 'simple_energy', 'simple_correlation'
+    # NOTE: RadioML 2018.01A uses 1 sample per symbol (no oversampling)
+    # Set to 1 to disable DSP processing and treat each sample as a symbol
+    SAMPLES_PER_SYMBOL = 1  # Samples per symbol (1 = no oversampling, >1 = requires timing recovery)
+    TIMING_METHOD = 'simple_energy'  # Only used if SPS > 1
 
     # Target modulations to visualize
     TARGET_MODULATIONS = [
@@ -278,14 +280,14 @@ def simple_timing_recovery(i_signal, q_signal, sps=2, method='energy'):
         return np.arange(best_offset, len(sig), sps)
 
 
-def extract_symbols(i_signal, q_signal, sps=2, method='gardner', alpha=0.35):
+def extract_symbols(i_signal, q_signal, sps=1, method='gardner', alpha=0.35):
     """
     Extract symbol decision points from raw I/Q waveform
 
     Args:
         i_signal: In-phase component
         q_signal: Quadrature component
-        sps: Samples per symbol (estimate)
+        sps: Samples per symbol (1 = no oversampling, >1 = requires timing recovery)
         method: 'gardner', 'mueller_muller', 'simple_energy', 'simple_correlation'
         alpha: RRC roll-off factor for matched filtering
 
@@ -294,9 +296,22 @@ def extract_symbols(i_signal, q_signal, sps=2, method='gardner', alpha=0.35):
             - symbol_i: I values at decision points
             - symbol_q: Q values at decision points
             - symbol_indices: Timing indices
-            - filtered_i: Matched filtered I signal
-            - filtered_q: Matched filtered Q signal
+            - filtered_i: Matched filtered I signal (same as input for sps=1)
+            - filtered_q: Matched filtered Q signal (same as input for sps=1)
     """
+    # Special case: sps=1 means data is already at symbol rate
+    # No DSP processing needed - every sample IS a symbol
+    if sps == 1:
+        symbol_indices = np.arange(len(i_signal))
+        return {
+            'symbol_i': i_signal.copy(),
+            'symbol_q': q_signal.copy(),
+            'symbol_indices': symbol_indices,
+            'filtered_i': i_signal.copy(),
+            'filtered_q': q_signal.copy()
+        }
+
+    # For sps > 1: Apply DSP processing
     # Apply matched filtering
     i_filtered, q_filtered = matched_filter(i_signal, q_signal, alpha=alpha, sps=sps)
 
@@ -380,7 +395,7 @@ def load_dataset_info(file_path, json_path):
     }
 
 
-def plot_iq_signal(i_signal, q_signal, title, save_path=None, sps=2, timing_method='simple_energy'):
+def plot_iq_signal(i_signal, q_signal, title, save_path=None, sps=1, timing_method='simple_energy'):
     """
     Plot I/Q signal in multiple representations with proper DSP processing
 
@@ -389,11 +404,18 @@ def plot_iq_signal(i_signal, q_signal, title, save_path=None, sps=2, timing_meth
         q_signal: Quadrature component (numpy array)
         title: Plot title
         save_path: Path to save the figure (optional)
-        sps: Samples per symbol (default: 2)
-        timing_method: Timing recovery method ('gardner', 'mueller_muller', 'simple_energy', 'simple_correlation')
+        sps: Samples per symbol (1 = no oversampling, >1 = requires timing recovery)
+        timing_method: Timing recovery method (only used if sps > 1)
     """
     fig, axes = plt.subplots(2, 3, figsize=(18, 10))
-    fig.suptitle(title, fontsize=16, fontweight='bold')
+
+    # Update title based on SPS
+    if sps == 1:
+        full_title = f"{title}\n(1 sample/symbol - No DSP processing)"
+    else:
+        full_title = f"{title}\n(DSP: {sps} samples/symbol, {timing_method})"
+
+    fig.suptitle(full_title, fontsize=16, fontweight='bold')
 
     # Time axis
     time_axis = np.arange(len(i_signal))
@@ -422,29 +444,42 @@ def plot_iq_signal(i_signal, q_signal, title, save_path=None, sps=2, timing_meth
     ax1.legend(fontsize=8)
     ax1.grid(True, alpha=0.3)
 
-    # 2. Constellation diagram - Raw trajectory
+    # 2. Constellation diagram - Raw trajectory (all samples)
     ax2 = axes[0, 1]
-    ax2.scatter(i_signal, q_signal, alpha=0.2, s=3, color='gray', label='Raw samples')
+    if sps == 1:
+        # For sps=1, all samples are symbols - show differently
+        ax2.scatter(i_signal, q_signal, alpha=0.4, s=8, color='blue',
+                   edgecolors='darkblue', linewidths=0.3, label=f'All samples (n={len(i_signal)})')
+        ax2.set_title('Constellation - All Samples\n(Each sample is a symbol)')
+    else:
+        ax2.scatter(i_signal, q_signal, alpha=0.2, s=3, color='gray', label='Raw trajectory')
+        ax2.set_title('Constellation - Raw Trajectory\n(includes inter-symbol transitions)')
     ax2.set_xlabel('I (In-phase)')
     ax2.set_ylabel('Q (Quadrature)')
-    ax2.set_title('Constellation - Raw Trajectory')
     ax2.grid(True, alpha=0.3)
     ax2.axhline(y=0, color='k', linewidth=0.5)
     ax2.axvline(x=0, color='k', linewidth=0.5)
     ax2.axis('equal')
     ax2.legend(fontsize=8)
 
-    # 3. Constellation diagram - Recovered symbols
+    # 3. Constellation diagram - Recovered/extracted symbols
     ax3 = axes[0, 2]
     if dsp_success:
-        ax3.scatter(symbols['symbol_i'], symbols['symbol_q'],
-                   alpha=0.6, s=15, color='red', marker='o',
-                   edgecolors='darkred', linewidths=0.5, label=f'Symbols (n={len(symbols["symbol_i"])})')
-        ax3.set_title(f'Constellation - Recovered Symbols\n(Method: {timing_method})')
+        if sps == 1:
+            # Same as raw for sps=1
+            ax3.scatter(symbols['symbol_i'], symbols['symbol_q'],
+                       alpha=0.6, s=15, color='red', marker='o',
+                       edgecolors='darkred', linewidths=0.5, label=f'Symbols (n={len(symbols["symbol_i"])})')
+            ax3.set_title('Constellation - Symbol Points\n(No processing needed for 1 SPS)')
+        else:
+            ax3.scatter(symbols['symbol_i'], symbols['symbol_q'],
+                       alpha=0.6, s=15, color='red', marker='o',
+                       edgecolors='darkred', linewidths=0.5, label=f'Recovered (n={len(symbols["symbol_i"])})')
+            ax3.set_title(f'Constellation - Recovered Symbols\n(Method: {timing_method})')
     else:
         ax3.text(0.5, 0.5, 'Symbol extraction\nfailed',
                 ha='center', va='center', transform=ax3.transAxes, fontsize=12)
-        ax3.set_title('Constellation - Recovered Symbols')
+        ax3.set_title('Constellation - Symbol Points')
     ax3.set_xlabel('I (In-phase)')
     ax3.set_ylabel('Q (Quadrature)')
     ax3.grid(True, alpha=0.3)
@@ -584,7 +619,7 @@ def visualize_modulation_samples(file_path, dataset_info, modulation, config, nu
             plot_iq_signal(i_signal, q_signal, title, save_path, sps=sps, timing_method=timing_method)
 
 
-def visualize_snr_comparison(file_path, dataset_info, modulation, config, snr_values=None, sps=2, timing_method='simple_energy'):
+def visualize_snr_comparison(file_path, dataset_info, modulation, config, snr_values=None, sps=1, timing_method='simple_energy'):
     """
     Visualize the same modulation type at different SNR levels
 
@@ -594,8 +629,8 @@ def visualize_snr_comparison(file_path, dataset_info, modulation, config, snr_va
         modulation: Modulation type to visualize
         config: Configuration object
         snr_values: List of SNR values to compare (optional)
-        sps: Samples per symbol
-        timing_method: Timing recovery method
+        sps: Samples per symbol (1 = no oversampling)
+        timing_method: Timing recovery method (only used if sps > 1)
     """
     if snr_values is None:
         # Select low, medium, and high SNR
@@ -618,7 +653,11 @@ def visualize_snr_comparison(file_path, dataset_info, modulation, config, snr_va
         if len(snr_values) == 1:
             axes = axes.reshape(1, -1)
 
-        fig.suptitle(f'{modulation} - SNR Comparison (DSP Processed)', fontsize=16, fontweight='bold')
+        if sps == 1:
+            title_suffix = '(1 sample/symbol - No DSP)'
+        else:
+            title_suffix = f'(DSP: {sps} SPS, {timing_method})'
+        fig.suptitle(f'{modulation} - SNR Comparison {title_suffix}', fontsize=16, fontweight='bold')
 
         for row, snr in enumerate(snr_values):
             # Find sample at this SNR
@@ -661,19 +700,23 @@ def visualize_snr_comparison(file_path, dataset_info, modulation, config, snr_va
             if row == len(snr_values) - 1:
                 axes[row, 0].set_xlabel('Sample Index')
 
-            # Plot raw constellation (trajectory)
-            axes[row, 1].scatter(i_signal, q_signal, alpha=0.2, s=3, color='gray')
+            # Plot constellation
+            if sps == 1:
+                axes[row, 1].scatter(i_signal, q_signal, alpha=0.4, s=8, color='blue',
+                                    edgecolors='darkblue', linewidths=0.3)
+            else:
+                axes[row, 1].scatter(i_signal, q_signal, alpha=0.2, s=3, color='gray')
             axes[row, 1].axhline(y=0, color='k', linewidth=0.5)
             axes[row, 1].axvline(x=0, color='k', linewidth=0.5)
             axes[row, 1].grid(True, alpha=0.3)
             axes[row, 1].axis('equal')
             if row == 0:
-                axes[row, 1].set_title('Raw Trajectory')
+                axes[row, 1].set_title('Constellation (All Samples)' if sps == 1 else 'Raw Trajectory')
             if row == len(snr_values) - 1:
                 axes[row, 1].set_xlabel('I (In-phase)')
             axes[row, 1].set_ylabel('Q (Quadrature)')
 
-            # Plot recovered constellation
+            # Plot symbols (same as all samples for sps=1)
             if dsp_success:
                 axes[row, 2].scatter(symbols['symbol_i'], symbols['symbol_q'],
                                     alpha=0.6, s=15, color='red', marker='o',
@@ -683,7 +726,7 @@ def visualize_snr_comparison(file_path, dataset_info, modulation, config, snr_va
             axes[row, 2].grid(True, alpha=0.3)
             axes[row, 2].axis('equal')
             if row == 0:
-                axes[row, 2].set_title('Recovered Symbols')
+                axes[row, 2].set_title('Symbol Points' if sps == 1 else 'Recovered Symbols')
             if row == len(snr_values) - 1:
                 axes[row, 2].set_xlabel('I (In-phase)')
             axes[row, 2].set_ylabel('Q (Quadrature)')
@@ -711,7 +754,7 @@ def visualize_snr_comparison(file_path, dataset_info, modulation, config, snr_va
         plt.close()
 
 
-def create_overview_plot(file_path, dataset_info, config, sps=2, timing_method='simple_energy'):
+def create_overview_plot(file_path, dataset_info, config, sps=1, timing_method='simple_energy'):
     """
     Create an overview plot showing multiple modulation types
 
@@ -719,8 +762,8 @@ def create_overview_plot(file_path, dataset_info, config, sps=2, timing_method='
         file_path: Path to HDF5 file
         dataset_info: Dictionary containing dataset metadata
         config: Configuration object
-        sps: Samples per symbol
-        timing_method: Timing recovery method
+        sps: Samples per symbol (1 = no oversampling)
+        timing_method: Timing recovery method (only used if sps > 1)
     """
     print(f"\n📊 Creating overview plot")
 
@@ -745,7 +788,11 @@ def create_overview_plot(file_path, dataset_info, config, sps=2, timing_method='
         if len(available_mods) == 1:
             axes = axes.reshape(1, -1)
 
-        fig.suptitle(f'Modulation Overview (SNR={snr_value:.1f}dB) - DSP Processed', fontsize=16, fontweight='bold')
+        if sps == 1:
+            title_suffix = '1 sample/symbol'
+        else:
+            title_suffix = f'DSP: {sps} SPS, {timing_method}'
+        fig.suptitle(f'Modulation Overview (SNR={snr_value:.1f}dB) - {title_suffix}', fontsize=16, fontweight='bold')
 
         for row, mod in enumerate(available_mods):
             # Find sample
@@ -786,19 +833,23 @@ def create_overview_plot(file_path, dataset_info, config, sps=2, timing_method='
             if row == len(available_mods) - 1:
                 axes[row, 0].set_xlabel('Sample Index')
 
-            # Raw constellation (trajectory)
-            axes[row, 1].scatter(i_signal, q_signal, alpha=0.2, s=3, color='gray')
+            # Constellation
+            if sps == 1:
+                axes[row, 1].scatter(i_signal, q_signal, alpha=0.4, s=8, color='blue',
+                                    edgecolors='darkblue', linewidths=0.3)
+            else:
+                axes[row, 1].scatter(i_signal, q_signal, alpha=0.2, s=3, color='gray')
             axes[row, 1].axhline(y=0, color='k', linewidth=0.5)
             axes[row, 1].axvline(x=0, color='k', linewidth=0.5)
             axes[row, 1].grid(True, alpha=0.3)
             axes[row, 1].axis('equal')
             if row == 0:
-                axes[row, 1].set_title('Raw Trajectory')
+                axes[row, 1].set_title('Constellation (All Samples)' if sps == 1 else 'Raw Trajectory')
             if row == len(available_mods) - 1:
                 axes[row, 1].set_xlabel('I (In-phase)')
             axes[row, 1].set_ylabel('Q (Quadrature)')
 
-            # Recovered constellation
+            # Symbols
             if dsp_success:
                 axes[row, 2].scatter(symbols['symbol_i'], symbols['symbol_q'],
                                     alpha=0.6, s=15, color='red', marker='o',
@@ -808,7 +859,7 @@ def create_overview_plot(file_path, dataset_info, config, sps=2, timing_method='
             axes[row, 2].grid(True, alpha=0.3)
             axes[row, 2].axis('equal')
             if row == 0:
-                axes[row, 2].set_title('Recovered Symbols')
+                axes[row, 2].set_title('Symbol Points' if sps == 1 else 'Recovered Symbols')
             if row == len(available_mods) - 1:
                 axes[row, 2].set_xlabel('I (In-phase)')
             axes[row, 2].set_ylabel('Q (Quadrature)')
@@ -822,7 +873,8 @@ def create_overview_plot(file_path, dataset_info, config, sps=2, timing_method='
 
 def main():
     """Main visualization function"""
-    parser = argparse.ArgumentParser(description='Visualize Raw IQ Signals with DSP Processing')
+    parser = argparse.ArgumentParser(
+        description='Visualize Raw IQ Signals (RadioML 2018.01A uses 1 sample/symbol by default)')
     parser.add_argument('--file_path', type=str, help='Path to HDF5 file')
     parser.add_argument('--json_path', type=str, help='Path to JSON file')
     parser.add_argument('--output_dir', type=str, help='Output directory')
@@ -830,10 +882,11 @@ def main():
     parser.add_argument('--num_samples', type=int, default=3, help='Number of samples per modulation')
     parser.add_argument('--create_overview', action='store_true', help='Create overview plot')
     parser.add_argument('--snr_comparison', action='store_true', help='Create SNR comparison plots')
-    parser.add_argument('--sps', type=int, default=2, help='Samples per symbol (default: 2)')
+    parser.add_argument('--sps', type=int, default=1,
+                       help='Samples per symbol (default: 1 for RadioML 2018.01A, >1 enables DSP processing)')
     parser.add_argument('--timing_method', type=str, default='simple_energy',
                        choices=['gardner', 'mueller_muller', 'simple_energy', 'simple_correlation'],
-                       help='Timing recovery method (default: simple_energy)')
+                       help='Timing recovery method for SPS>1 (default: simple_energy)')
 
     args = parser.parse_args()
 
@@ -856,11 +909,15 @@ def main():
     config.OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     print("="*70)
-    print("RAW IQ SIGNAL VISUALIZATION WITH DSP PROCESSING")
+    print("RAW IQ SIGNAL VISUALIZATION")
     print("="*70)
-    print(f"DSP Settings:")
-    print(f"  - Samples per symbol: {config.SAMPLES_PER_SYMBOL}")
-    print(f"  - Timing recovery method: {config.TIMING_METHOD}")
+    print(f"Processing Mode:")
+    if config.SAMPLES_PER_SYMBOL == 1:
+        print(f"  - 1 sample per symbol (NO DSP processing)")
+        print(f"  - Each sample is already a symbol decision point")
+    else:
+        print(f"  - {config.SAMPLES_PER_SYMBOL} samples per symbol (DSP processing enabled)")
+        print(f"  - Timing recovery method: {config.TIMING_METHOD}")
 
     # Load dataset info
     dataset_info = load_dataset_info(config.FILE_PATH, config.JSON_PATH)
